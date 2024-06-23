@@ -46,10 +46,11 @@ def arm_dron():
         is_armed = True
         start = 100
         propellers_speed = [start, start, start, start]
-        print(f'Армирование завершено. Скорость пропеллеров: {start} об/мин\n')
+        way_coords.append(coordinates)
+        print(f'Армирование завершено. Скорость пропеллеров: {start} об/мин')
         print(f'Направление движение пропеллеров: {propellers_direction}')
     else:
-        print('Армирование не завершено. Проверьте соединение \n')
+        print('Армирование не завершено. Проверьте соединение')
 
 
 def get_info():
