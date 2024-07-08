@@ -1,4 +1,4 @@
-from practice5 import GPS, DistanceSensor, Camera
+from practice1_5 import GPS, DistanceSensor, Camera
 import time
 
 
