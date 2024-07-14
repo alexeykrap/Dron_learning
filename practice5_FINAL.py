@@ -53,13 +53,14 @@ print("\nDecorator\n")
 def my_decorator(my_func):
     print(f"Это работает декоратор функции {my_func.__name__}")
     my_func()
-    print(f"Это снова работает декоратор функции {my_func.__name__}")
     return my_func
 
 
+# встроенный механизм декорирования
+# @my_decorator
 def my_function():
     print(f"А это работает сама функция my_function")
 
 
-my_decorator(my_function)
+my_function = my_decorator(my_function)  # вместо этой строчки можно использовать @my_decorator сразу над функцией
 
