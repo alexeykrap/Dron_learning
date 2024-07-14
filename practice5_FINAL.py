@@ -4,6 +4,9 @@ from abc import ABC, abstractmethod
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 
 # ------------------Singleton--------------------
+print("\nSingleton\n")
+
+
 class MySingleton:
     _instance = 0
 
@@ -27,18 +30,36 @@ else:
     print("Как так-то?")
 
 # ------------------Adapter--------------------
-
+print("\nAdapter\n")
 class MyClass:
     def test(self):
-        return 'Привет из класса MyClass!'
+        print(f"Привет из класса {self.__class__.__name__}")
 
 
 class MyClassAdapter:
-    def __init__(self, a: MyClass):
-        print(a.test)
+    def __init__(self, my_class: MyClass):
+        self.my_class = my_class
 
 
-a = MyClass()
-b = MyClassAdapter(a)
+my_class = MyClass()
+my_class_adapter = MyClassAdapter(my_class)
 
+my_class_adapter.my_class.test()
+
+# ------------------Decorator------------------
+print("\nDecorator\n")
+
+
+def my_decorator(my_func):
+    print(f"Это работает декоратор функции {my_func.__name__}")
+    my_func()
+    print(f"Это снова работает декоратор функции {my_func.__name__}")
+    return my_func
+
+
+def my_function():
+    print(f"А это работает сама функция my_function")
+
+
+my_decorator(my_function)
 

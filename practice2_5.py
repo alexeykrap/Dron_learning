@@ -1,4 +1,4 @@
-# паттерн Моск
+# паттерн Мост
 from abc import ABC, abstractmethod
 
 
