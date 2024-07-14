@@ -8,14 +8,17 @@ print("\nSingleton\n")
 
 
 class MySingleton:
-    _instance = 0
+    _instance = []
 
     def __init__(self):
         if not MySingleton._instance:
-            MySingleton._instance = self
+            MySingleton._instance.append(self)
+            print('Создан первый объект')
+        else:
+            print('Объект уже создан!')
 
     def get_instance(self):
-        return self._instance
+        return self._instance[0]
 
 
 a1 = MySingleton()
@@ -25,7 +28,7 @@ print(a1.get_instance())
 print(a2.get_instance())
 is_equal = a1.__eq__(a2)
 if is_equal:
-    print("Они одинаковые!")
+    print("Это один и тот же объект!")
 else:
     print("Как так-то?")
 
