@@ -2,6 +2,7 @@
 from abc import ABC, abstractmethod
 import cv2
 
+
 class Observer(ABC):  # наблюдатель
     @abstractmethod
     def update(self, message: str, image=None):
@@ -74,6 +75,6 @@ camera.add_observer(data_logger)
 camera.add_observer(alert_system)
 camera.add_observer(analysis_system)
 
-camera.set_zoom(2.0)
+camera.set_zoom(1.0)
 camera.take_image()
 
