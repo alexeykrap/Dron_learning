@@ -6,33 +6,36 @@ from abc import ABC, abstractmethod
 
 
 class DBFactory(ABC):
+    def __init__(self, path):
+        self._path = path
     @abstractmethod
-    def connect(self, path, user='root', password='', host='localhost'):
+    def connect(self):
         pass
 
 
+
 class SQLiteFactory(DBFactory):
-    try:
-        def connect(self, path, user='root', password='', host='localhost'):
-            return sqlite3.connect(database=path)
-    except:
-        print("Не получилось установить соединения с базой данных")
+    def connect(self):
+        try:
+            return sqlite3.connect(database=self._path)
+        except ConnectionError:
+            print("Не получилось установить соединения с базой данных")
 
 
 class MySQLFactory(DBFactory):
-    try:
-        def connect(self, path, user='root', password='', host='localhost'):
-            return pymysql.connect(database=path)
-    except:
-        print("Не получилось установить соединения с базой данных")
+    def connect(self):
+        try:
+            return pymysql.connect(database=self._path)
+        except ConnectionError:
+            print("Не получилось установить соединения с базой данных")
 
 
 class PostgresQLFactory(DBFactory):
-    try:
-        def connect(self, path, user='root', password='', host='localhost'):
-            return psycopg2.connect(database=path)
-    except:
-        print("Не получилось установить соединения с базой данных")
+    def connect(self):
+        try:
+            return psycopg2.connect(database=self._path)
+        except ConnectionError:
+            print("Не получилось установить соединения с базой данных")
 
 
 class QueryBuilder:
@@ -131,4 +134,13 @@ class UserMapper:
             user.comments
             )
         )
+
+
+class DBConnectionManager:
+    def __init__(self, connection: DBFactory):
+        self._connection = connection
+
+    def connect(self):
+        self._connection.connect()
+
 
