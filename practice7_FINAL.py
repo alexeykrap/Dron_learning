@@ -13,29 +13,19 @@ class DBFactory(ABC):
         pass
 
 
-
 class SQLiteFactory(DBFactory):
     def connect(self):
-        try:
-            return sqlite3.connect(database=self._path)
-        except ConnectionError:
-            print("Не получилось установить соединения с базой данных")
+        return sqlite3.connect(database=self._path)
 
 
 class MySQLFactory(DBFactory):
     def connect(self):
-        try:
-            return pymysql.connect(database=self._path)
-        except ConnectionError:
-            print("Не получилось установить соединения с базой данных")
+        return pymysql.connect(database=self._path)
 
 
 class PostgresQLFactory(DBFactory):
     def connect(self):
-        try:
-            return psycopg2.connect(database=self._path)
-        except ConnectionError:
-            print("Не получилось установить соединения с базой данных")
+        return psycopg2.connect(database=self._path)
 
 
 class QueryBuilder:
@@ -141,6 +131,49 @@ class DBConnectionManager:
         self._connection = connection
 
     def connect(self):
-        self._connection.connect()
+        try:
+            self._connection.connect()
+        except ConnectionError:
+            print(f"Не получилось установить соединение с {self._connection}")
+
+
+if __name__ == '__main__':
+    connection1 = sqlite3.connect('tbl_users1.db')
+    cursor1 = connection1.cursor()
+
+    cursor1.execute("""
+        CREATE TABLE IF NOT EXISTS tbl_users1 (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        contact TEXT,
+        comments TEXT
+        )
+        """)
+
+    connection2 = pymysql.connect(database='tbl_users2', host='localhost', user='alexeykrap', password='2k5iq7RH')
+    cursor2 = connection2.cursor()
+
+    cursor2.execute("""
+        CREATE TABLE IF NOT EXISTS tbl_users2 (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name TEXT NOT NULL,
+        contact TEXT,
+        comments TEXT
+        )
+        """)
+
+    connection3 = psycopg2.connect(host='localhost', user='alexeykrap', password='2k5iq7RH')
+    cursor3 = connection3.cursor()
+
+    cursor3.execute("""
+        CREATE SCHEMA `tbl_users3` DEFAULT CHARACTER SET utf8
+        CREATE TABLE IF NOT EXISTS tbl_users3 (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        contact TEXT,
+        comments TEXT
+        )
+        """)
+
 
 
