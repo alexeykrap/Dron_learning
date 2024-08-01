@@ -15,17 +15,20 @@ class DBFactory(ABC):
 
 class SQLiteFactory(DBFactory):
     def connect(self):
-        return sqlite3.connect(database=self._path)
+        print('Соединение с БД SQLite3')
+        # return sqlite3.connect(database=self._path)
 
 
 class MySQLFactory(DBFactory):
     def connect(self):
-        return pymysql.connect(database=self._path)
+        print('Соединение с БД MySQL')
+        # return pymysql.connect(database=self._path)
 
 
 class PostgresQLFactory(DBFactory):
     def connect(self):
-        return psycopg2.connect(database=self._path)
+        print('Соединение с БД PostgresQL')
+        # return psycopg2.connect(database=self._path)
 
 
 class QueryBuilder:
