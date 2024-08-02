@@ -1,4 +1,3 @@
-import sqlite3
 import pymysql
 import psycopg2
 from abc import ABC, abstractmethod
@@ -6,177 +5,132 @@ from abc import ABC, abstractmethod
 
 
 class DBFactory(ABC):
-    def __init__(self, path):
-        self._path = path
     @abstractmethod
     def connect(self):
         pass
 
-
-class SQLiteFactory(DBFactory):
-    def connect(self):
-        print('Соединение с БД SQLite3')
-        # return sqlite3.connect(database=self._path)
+    @abstractmethod
+    def cursor(self, connection):
+        pass
 
 
 class MySQLFactory(DBFactory):
     def connect(self):
         print('Соединение с БД MySQL')
-        # return pymysql.connect(database=self._path)
+        return pymysql.connect(user='my_user', password='my_password', host='localhost', database="my_db")
+
+    def cursor(self, connection):
+        return connection.cursor()
 
 
 class PostgresQLFactory(DBFactory):
     def connect(self):
         print('Соединение с БД PostgresQL')
-        # return psycopg2.connect(database=self._path)
+        return psycopg2.connect(user='my_user', password='my_password', host='localhost', database="my_db")
+
+    def cursor(self, connection):
+        return connection.cursor()
 
 
 class QueryBuilder:
     def __init__(self):
         self._query = {
-            'select': None,
-            'from': None,
-            'where': None,
-            'order_by': None,
-            'insert_into': None,
-            'values': None
+            'select': "",
+            'from': "",
+            'where': "",
+            'order_by': "",
         }
-        self._params = []
 
-    def select(self, table, columns='*'):
-        self._query['select'] = f'SELECT {columns} '
-        self._query['from'] = f' FROM {table} '
+    def select(self, *columns):
+        self._query['select'] = ", ".join(columns)
         return self
 
-    def where(self, condition, parameters=None):
-        self._query['where'] = f'WHERE {condition} '
-        if parameters:
-            self._params.extend(parameters)
+    def from_table(self, table):
+        self._query['from'] = table
         return self
 
-    def order_by(self, order):
-        self._query['order_by'] = f'ORDER BY {order} '
+    def where(self, condition):
+        self._query['where'] = condition
         return self
 
-    def add_params(self, *parameters):
-        self._params.extend(parameters)
-        return self
-
-    def insert_into(self, table, columns):
-        cols = ','.join(columns)
-        placeholders = ','.join(['?'] * len(columns))
-        self._query['insert_into'] = f'INSERT INTO {table} ({cols})'
-        self._query['values'] = f'VALUES ({placeholders})'
-        return self
-
-    def values(self, *values):
-        self._params.extend(values)
+    def order_by(self, column, order='ASC'):
+        self._query['order_by'] = f'{column} {order} '
         return self
 
     def get_query(self):
-        query = ''
-        if self._query['select']:
-            query = f"{self._query['select']} {self._query['from']}"
+        query = f'SELECT {self._query['select']} FROM {self._query['from']}'
         if self._query['where']:
-            query += f" {self._query['where']}"
+            query += f" WHERE {self._query['where']}"
         if self._query['order_by']:
-            query += f" {self._query['order_by']}"
-        if self._query['insert_into']:
-            query = f" {self._query['insert_into']} {self._query['values']}"
-        return query
-
-    def get_params(self):
-        return self._params
+            query += f" ORDER BY {self._query['order_by']}"
+        return query + ';'
 
 
 class User:
-    def __init__(self, id, name: str, contact: str, comments: str):
+    def __init__(self, id, name: str, contact: str):
         self.id = id
         self.name = name
         self.contact = contact
-        self.comments = comments
 
     def __str__(self):
-        return f"{self.id} пользователь: {self.name}, {self.contact}, ({self.comments})"
+        return f"{self.id} пользователь: {self.name}, {self.contact}"
 
 
 class UserMapper:
-    def __init__(self, connection):
-        self.connection = connection
+    def __init__(self, cursor):
+        self.cursor = cursor
 
-    def get_user(self, id):
-        cursor = self.connection.cursor()
-        cursor.execute(f'SELECT * FROM tbl_users WHERE id={id}')
-        result = cursor.fetchone()
+    def get_by_id(self, id):
+        self.cursor.execute('SELECT id, name, email FROM users WHERE id = %s', (id,))
+        result = self.cursor.fetchone()
         if result:
-            user = User(
-                id=result[0],
-                name=result[1],
-                contact=result[2],
-                comments=result[3]
-            )
-            return str(user)
-        return "Ничего не найдено..."
+            return User(id=result[0], name=result[1], contact=result[2])
+        return None
 
-    def add_user(self, user: User):
-        cursor = self.connection.cursor()
-        cursor.execute(f"INSERT INTO tbl_users VALUES(?, ?, ?, ?)",(
-            user.id,
-            user.name,
-            user.contact,
-            user.comments
-            )
-        )
+    def insert(self, user: User):
+        self.cursor.execute("INSERT INTO users (name, email) VALUES (%s, %s)", (user.name, user.contact))
+
 
 
 class DBConnectionManager:
-    def __init__(self, connection: DBFactory):
-        self._connection = connection
+    def __init__(self, factory: DBFactory):
+        self._factory = factory
+        self.connection = None
+        self.cursor = None
 
     def connect(self):
-        try:
-            self._connection.connect()
-        except ConnectionError:
-            print(f"Не получилось установить соединение с {self._connection}")
+        if not self.connection:
+            self.connection = self._factory.connect()
+            self.cursor = self._factory.cursor(self.connection)
 
+    def close(self):
+        if self.cursor:
+            self.cursor.close()
+        if self.connection:
+            self.connection.close()
+        self.connection = None
+        self.cursor = None
+
+    def get_cursor(self):
+        if not self.cursor:
+            self.connect()
+        return self.cursor
 
 if __name__ == '__main__':
-    connection1 = sqlite3.connect('tbl_users1.db')
-    cursor1 = connection1.cursor()
+    mysql_factory = MySQLFactory()
+    postgresql_factory = PostgresQLFactory()
 
-    cursor1.execute("""
-        CREATE TABLE IF NOT EXISTS tbl_users1 (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        contact TEXT,
-        comments TEXT
-        )
-        """)
+    mysql_manager = DBConnectionManager(mysql_factory)
+    postgresql_manager = DBConnectionManager(postgresql_factory)
 
-    connection2 = pymysql.connect(database='tbl_users2', host='localhost', user='alexeykrap', password='2k5iq7RH')
-    cursor2 = connection2.cursor()
+    sql_builder = QueryBuilder()
+    query = sql_builder.select('id', 'name', 'contact').from_table('users').where('id = %s').get_query()
 
-    cursor2.execute("""
-        CREATE TABLE IF NOT EXISTS tbl_users2 (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name TEXT NOT NULL,
-        contact TEXT,
-        comments TEXT
-        )
-        """)
+    mysql_cursor = mysql_manager.get_cursor()
+    mysql_cursor.execute(query, (1,))
+    user_mapper = UserMapper(mysql_cursor)
+    user = user_mapper.get_by_id(1)
+    print(user.name, user.contact)
 
-    connection3 = psycopg2.connect(host='localhost', user='alexeykrap', password='2k5iq7RH')
-    cursor3 = connection3.cursor()
-
-    cursor3.execute("""
-        CREATE SCHEMA `tbl_users3` DEFAULT CHARACTER SET utf8
-        CREATE TABLE IF NOT EXISTS tbl_users3 (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        contact TEXT,
-        comments TEXT
-        )
-        """)
-
-
-
+    mysql_manager.close()
+    postgresql_manager.close()
