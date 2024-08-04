@@ -1,14 +1,10 @@
-from flask import Flask, request, jsonify, Response
+from flask import Flask, Response, request, jsonify
 import cv2
 import numpy as np
-import time
-import logging
 
 app = Flask(__name__)
-
 drone_state = {
     'status': 'landed',
-    'barrery': 100,
     'position': {
         'latitude': 0.0,
         'longitude': 0.0,
@@ -16,102 +12,99 @@ drone_state = {
     },
     'telemetry_data': []
 }
-
 video_frame = None
-fps = 10
-quality = 80
 
 
 @app.route('/drone/takeoff', methods=['POST'])
 def takeoff():
     try:
-        global drone_state
-        if drone_state['status'] == 'landed' and drone_state['battery'] > 10:
-            drone_state['status'] = 'flying'
-            drone_state['battery'] -= 10
-            drone_state['position']['altitude'] += 10
-            app.logger.info('Дрон взлетел')
-            logging.info('Дрон взлетел')
-            return jsonify({
-                'message': 'Drone is taking off',
-                'drone_state': drone_state
-            }), 200
-        else:
-            return jsonify({'message': 'Drone cannot take off'}), 400
+        if drone_state['status'] == 'flying':
+            return jsonify({'error': 'Дрон уже в воздухе'}), 400
+
+        drone_state['status'] = 'flying'
+        drone_state['position']['altitude'] = 10.0
+
+        app.logger.info('Дрон взлетел')
+        return jsonify({
+            'message': 'Дрон в воздухе',
+            'drone_state': drone_state
+        }), 200
     except Exception as e:
-        app.logger.error(f'Error taking off: {str(e)}')
-        return jsonify({'message': 'An arror occurred'}), 500
+        app.logger.error(f'Взлёт не удался: {e}')
+        return jsonify({'error': 'Ошибка сервера'}), 500
 
 
 @app.route('/drone/land', methods=['POST'])
 def land():
     try:
-        global drone_state
-        if drone_state['status'] != 'landed':
-            drone_state['status'] = 'landed'
-            drone_state['battery'] -= 10
-            drone_state['position']['altitude'] -= 10
-            app.logger.info('Drone is landing')
-            logging.info('Drone is landing')
-            return jsonify({
-                'message': 'Drone is landing',
-                'drone_state': drone_state
-            }), 200
-        else:
-            return jsonify({'message': 'Drone cannot landing'}), 400
+        if drone_state['status'] == 'landed':
+            return jsonify({'error': 'Дрон уже на земле'}), 400
+
+        drone_state['status'] = 'landed'
+        drone_state['position']['altitude'] = 0.0
+
+        app.logger.info('Дрон приземлился')
+        return jsonify({
+            'message': 'Дрон на земле',
+            'drone_state': drone_state
+        }), 200
     except Exception as e:
-        app.logger.error(f'Error landing: {str(e)}')
-        return jsonify({'message': 'An error occurred'}), 500
+        app.logger.error(f'Ошибка при посадке: {e}')
+        return jsonify({'error': 'Ошибка при посадке'}), 500
 
 
-@app.route('/drone/update_position', methods=["POST", "PUT"])
+@app.route('/update_position', methods=['POST', 'PUT'])
+# С помощью POST мы можем отправить всю телеметрию, а с помощью PUT только обновить координаты
 def update_position():
     data = request.json
-    if 'latitude' in data and 'longitude' in data and 'altitude' in data:
-        if request.method == "PUT":
-            drone_state["position"]["latitude"] = data["latitude"]
-            drone_state["position"]["longitude"] = data["longitude"]
-            drone_state["position"]["altitude"] = data["altitude"]
-            app.logger.info("Drone position updated")
-            logging.info("Drone position updated")
-            return jsonify({
-                "message": "Drone position updated",
-                "drone_state": drone_state
-            }), 200
-    else:
-        return jsonify({"message": "Invalid position data"}), 400
+    if not data:
+        return jsonify({
+            "error": "Данные не получены...",
+        }), 400
+    if request.method == "POST":  # Здесь мы можем получить полностью всю телеметрию
+        pass
+    if request.method == "PUT":  # Здесь мы можем обновить координаты
+        drone_state["position"]["latitude"] = float(data["latitude"])
+        drone_state["position"]["longitude"] = float(data["longitude"])
+        drone_state["position"]["altitude"] = float(data["altitude"])
+        return jsonify({
+            "message": "Позиция обновлена",
+            "drone_state": drone_state
+        }), 200
 
 
-@app.route("/drone/telemetry", methods=["POST"])
+@app.route('/telemetry', methods=['POST'])
 def receive_telemetry():
     data = request.json
-    drone_state["telemetry_data"].append(data)
-    return jsonify({"status": "Телеметрия принята"}), 200
+    drone_state['telemetry_data'].append(data)
+    return jsonify({'status': 'Получение телеметрии'}), 200
 
 
-@app.route("/drone/display", methods=["GET"])
+@app.route('/display', methods=['GET'])
 def display_telemetry():
-    return jsonify({"telemetry_data": drone_state["telemetry_data"]}), 200
+    return jsonify(drone_state['telemetry_data']), 200
 
 
-@app.route("/drone/video", methods=["POST"])
+@app.route('/video', methods=['POST'])
+def receive_video():
+    global video_frame
+    np_array = np.frombuffer(request.data, dtype=np.uint8)
+    video_frame = cv2.imdecode(np_array, cv2.IMREAD_COLOR)
+    return '', 204
+
+
+@app.route('/video_feed')
 def video_feed():
     def generate():
         global video_frame
         while True:
             if video_frame is not None:
-                _, jpeg = cv2.imencode('.jpg', video_frame,[int(cv2.IMWRITE_JPEG_QUALITY), quality])
-                frame = jpeg.tobytes()
-                yield (b'--frame\r\n'
+                _, buffer = cv2.imencode('.jpg', video_frame)
+                frame = buffer.tobytes()
+                yield (b'--frame/r/n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-                time.sleep(1 / fps)
-    return Response(generate(), mimetype='multipart/x-mixed-repalce; boundary=frame')
+
+    return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
-def main():
-    app.run(host='0.0.0.0', port=5000, debug=True)
-
-
-if __name__ == '__main__':
-    main()
-
+app.run()

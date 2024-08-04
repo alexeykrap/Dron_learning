@@ -1,80 +1,58 @@
-import requests, cv2, json, time
+import requests
+import cv2
+import json
+import time
 
-base_url = 'http://localhost:5000'
-
-response = requests.post(f'{base_url}/drone/takeoff')
-print(f'Status code: {response.status_code}')
-print(response.json())
+base_url = 'http://127.0.0.1:5000/'
 
 
-def send_telemetry_data(latitude, longitude, altitude):
+def send_telemetry(latitude, longitude, altitude):
     json_data = {
-        "latitude": latitude,
-        "longitude": longitude,
-        "altitude": altitude
+        'latitude': latitude,
+        'longitude': longitude,
+        'altitude': altitude
     }
-    response = requests.post(f"{base_url}/drone/telemetry", json=json_data)
-
-    print(f"Status code: {response.status_code}, JSON: {response.json()}")
+    response = requests.post(f'{base_url}telemetry', json=json_data)
+    print(response.json())
 
 
 def send_video(video_frame):
-    _, jpeg = cv2.imencode('.jpg', video_frame)
-    response = requests.post(f'{base_url}/drone/video', data=jpeg.tobytes())
+    _, buffer = cv2.imencode('.jpeg', video_frame)
+    response = requests.post(f'{base_url}video', data=buffer.tobytes())
     if response.status_code == 204:
-        print("Video sended")
+        print('Видео отправлено')
     else:
-        print(f"Error. Status code: {response.status_code}")
+        print('Видео не отправлено')
 
 
 def takeoff():
-    response = requests.post(f"{base_url}/drone/takeoff")
-    print(f"Status code: {response.status_code}")
-    print(f"Takeoff: {response.json()}")
+    response = requests.post(f"{base_url}drone/takeoff")
+    print(f"Взлёт: {response.json()}")
+
+
+def land():
+    response = requests.post(f"{base_url}drone/land")
+    print(f"Посадка: {response.json()}")
 
 
 def update_position(latitude, longitude, altitude):
-    json_data = {
+    data = {
         "latitude": latitude,
         "longitude": longitude,
         "altitude": altitude
     }
-    response = requests.put(f"{base_url}/drone/update_position", json=json_data)
-    print(f"Status code: {response.status_code}, JSON: {response.json()}")
+    response = requests.put(f"{base_url}update_position", json=data)
+    print(f"Обновление позиции: {response.json()}")
 
 
-
-def land():
-    response = requests.post(f"{base_url}/drone/land")
-    print(f"Status code: {response.status_code}")
-    print(f"Land: {response.json()}")
-
-
-def main2():
-    send_telemetry_data(55.7522200, 37.6155, 100)
-    cap = cv2.VideoCapture(0)
-    fps = 60
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            print("Error. Unable to read frame.")
-            break
-        send_video(frame)
-        time.sleep(1 / fps)
-    cap.release()
-    print("Video capture finished.")
-    cv2.destroyWindow()
-
-
-def main():
+if __name__ == '__main__':
     takeoff()
-    time.sleep(1)
-    update_position(55.75222000, 37.6155, 150)
-    time.sleep(1)
-    update_position(66.1322200, 40.3955, 100)
-    time.sleep(1)
+    time.sleep(2)
+
+    update_position(55.7558, 37.6176, 100)
+    time.sleep(2)
+
+    update_position(56.1366, 40.3966, 50)
+    time.sleep(2)
+
     land()
-
-
-if __name__ == "__main__":
-    main()
