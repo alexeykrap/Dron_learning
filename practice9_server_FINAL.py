@@ -9,7 +9,7 @@ missions = {}
 # Создание нового БПЛА
 @app.route("/drones", methods=["POST"])
 def create_drone():
-    drone_id = request.json.pop("drone_id")
+    drone_id = int(request.json.pop("drone_id"))
     if drone_id:
         drones[drone_id] = request.json
         return drones[drone_id], 201
@@ -72,42 +72,46 @@ def delete_drone(drone_id):
 # Создание новой миссии
 @app.route("/missions", methods=["POST"])
 def create_mission():
-    global missions
-    mission_id = request.json.get[0]
+    mission_id = int(request.json.pop("mission_id"))
     if mission_id:
         missions[mission_id] = request.json
-        return jsonify({
-            "message": f"Миссия c ID {mission_id} создана"
-        }), 201
+        return missions[mission_id], 201
     return jsonify({
-        "error": f"Не могу создать такую миссию"
-    }), 400
+        "error": f"Ошибка при регистрации миссии"
+    }), 404
 
 
 # Получение списка всех миссий
 @app.route("/missions", methods=["GET"])
 def get_missions():
-    return jsonify(missions), 200
+    missions_list = []
+    for id, mission in missions.items():
+        result = {
+            "id": id,
+            **mission
+        }
+        missions_list.append(result)
+    return jsonify(missions_list), 200
 
 
 # Получение информации о конкретной миссии
-@app.route("/missions/<id>", methods=["GET"])
+@app.route("/missions/<mission_id>", methods=["GET"])
 def get_mission(mission_id):
-    mission = missions.get(mission_id)
-    if mission:
+    if int(mission_id) in missions:
+        mission = missions[int(mission_id)]
         return jsonify(mission), 200
     return jsonify({
-        "error": f"Миссия с ID {mission_id} не найдена"
+        "error": f"Миссия c ID {mission_id} не найдена"
     }), 404
 
 
 # Обновление информации о миссии
-@app.route("/missions/<id>", methods=["PUT"])
+@app.route("/missions/<mission_id>", methods=["PUT"])
 def update_mission(mission_id):
     global missions
-    new_mission_info = request.json.get[mission_id]
-    if new_mission_info:
-        missions[mission_id] = new_mission_info
+    new_mission_info = request.json
+    if int(mission_id) in missions:
+        missions[int(mission_id)] = new_mission_info
         return jsonify({
             "message": f"Миссия {mission_id} успешно обновлена"
         }), 200
@@ -117,9 +121,9 @@ def update_mission(mission_id):
 
 
 # Удаление миссии
-@app.route("/missions/<id>", methods=["DELETE"])
+@app.route("/missions/<mission_id>", methods=["DELETE"])
 def delete_mission(mission_id):
-    if missions.pop(mission_id, False):
+    if missions.pop(int(mission_id), False):
         return jsonify({
             "message": f"Миссия {mission_id} успешно удалена"
         }), 200
